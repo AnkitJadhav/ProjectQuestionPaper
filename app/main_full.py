@@ -144,6 +144,11 @@ async def ping():
     """Simple ping endpoint"""
     return {"ping": "pong", "timestamp": datetime.now().isoformat()}
 
+@app.get("/ready")
+async def ready():
+    """Ultra-simple ready check - always responds quickly"""
+    return {"ready": True}
+
 @app.get("/status")
 async def status():
     """Detailed status information"""

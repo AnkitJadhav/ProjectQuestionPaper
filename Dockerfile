@@ -1,32 +1,17 @@
-# Optimized Dockerfile for Render.com deployment
+# Ultra-minimal Dockerfile for Render.com - Avoids 2GB temp storage issue
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies with minimal cache
-RUN apt-get update && apt-get install -y \
-    curl \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean \
-    && apt-get autoremove -y
+# Install only essential system dependencies
+RUN apt-get update && apt-get install -y curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (Docker layer caching)
+# Copy requirements and install basic dependencies only
 COPY requirements.minimal.txt ./requirements.txt
-
-# Install Python dependencies with aggressive cleanup
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip cache purge \
-    && rm -rf ~/.cache/pip \
-    && rm -rf /tmp/* \
-    && find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
-    && find /usr/local/lib/python3.11/site-packages -name "__pycache__" -type d -exec rm -rf {} + || true
+RUN pip install --no-cache-dir -r requirements.txt && pip cache purge
 
 # Copy application code
 COPY app/ ./app/
-
-# Copy startup script
 COPY start_production.py ./
 
 # Create data directories
@@ -35,18 +20,8 @@ RUN mkdir -p data/uploads data/output
 # Environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
-ENV PYTHONDONTWRITEBYTECODE=1
 ENV ENVIRONMENT=production
 ENV FORCE_FULL_MODE=true
-
-# Verify files exist (for debugging)
-RUN echo "=== File verification ===" \
-    && ls -la app/ \
-    && ls -la app/main_full.py \
-    && echo "=== Verification complete ==="
-
-# Clean up any remaining temp files
-RUN rm -rf /tmp/* /var/tmp/* || true
 
 # Use dynamic port from Render
 EXPOSE $PORT
