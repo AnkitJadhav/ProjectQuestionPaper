@@ -38,8 +38,11 @@ ENV ENVIRONMENT=production
 # Expose port
 EXPOSE $PORT
 
-# Verify main_full.py exists and use it explicitly
+# Copy startup script
+COPY start_production.py ./
+
+# Verify main_full.py exists
 RUN ls -la app/main_full.py || echo "ERROR: main_full.py not found!"
 
-# Use full-featured app with absolute path
-CMD ["sh", "-c", "uvicorn app.main_full:app --host 0.0.0.0 --port ${PORT:-8000}"] 
+# Use production startup script
+CMD ["python", "start_production.py"] 
