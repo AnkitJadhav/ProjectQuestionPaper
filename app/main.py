@@ -9,14 +9,36 @@ from typing import List, Optional, Dict, Any
 import shutil
 import asyncio
 
-from .schemas import (
-    UploadResponse, DocumentInfo, GenerateRequest, 
-    GenerateResponse, JobStatus, DocType, EnhancedGenerationRequest, ProfessionalQuestionConfig, ChapterWeightage
-)
-from .deps import add_document, get_all_documents, UPLOAD_PATH
-from .worker import ingest_pdf, generate_question_paper, get_job_status
-from .rag.deepseek_client import test_connection
-from enhanced_worker import generate_professional_question_paper, get_enhanced_job_status
+# Defer imports that might cause startup issues
+# These will be imported only when needed
+
+def _import_schemas():
+    """Import schemas when needed"""
+    from .schemas import (
+        UploadResponse, DocumentInfo, GenerateRequest, 
+        GenerateResponse, JobStatus, DocType, EnhancedGenerationRequest, ProfessionalQuestionConfig, ChapterWeightage
+    )
+    return UploadResponse, DocumentInfo, GenerateRequest, GenerateResponse, JobStatus, DocType, EnhancedGenerationRequest, ProfessionalQuestionConfig, ChapterWeightage
+
+def _import_deps():
+    """Import deps when needed"""
+    from .deps import add_document, get_all_documents, UPLOAD_PATH
+    return add_document, get_all_documents, UPLOAD_PATH
+
+def _import_worker():
+    """Import worker when needed"""
+    from .worker import ingest_pdf, generate_question_paper, get_job_status
+    return ingest_pdf, generate_question_paper, get_job_status
+
+def _import_deepseek():
+    """Import deepseek client when needed"""
+    from .rag.deepseek_client import test_connection
+    return test_connection
+
+def _import_enhanced_worker():
+    """Import enhanced worker when needed"""
+    from enhanced_worker import generate_professional_question_paper, get_enhanced_job_status
+    return generate_professional_question_paper, get_enhanced_job_status
 
 
 # Initialize FastAPI app
@@ -26,10 +48,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Add CORS middleware
+# Add CORS middleware - allow all origins for Railway deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=["*"],  # Allow all origins for deployment
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,68 +74,56 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint - lightweight during ML dependency installation"""
+    """Ultra-minimal health check endpoint"""
     try:
-        # Check if ML dependencies are being installed
-        import importlib.util
+        import sys
+        import platform
         
-        # Basic health check
+        # Always return success - just check basic Python functionality
         response = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
-            "ml_dependencies_status": "checking"
+            "python_version": sys.version,
+            "platform": platform.platform(),
+            "app_version": "1.0.0"
         }
         
-        # Check ML readiness flag first
-        if os.path.exists("/tmp/ml_ready"):
-            response["ml_dependencies_status"] = "ready"
-            try:
-                # ML dependencies ready, do full health check
-                from .deps import get_index
-                index = get_index()
-                response["vector_db_size"] = index.ntotal
-                
-                # Test LLM connection
-                try:
-                    response["llm_status"] = "connected" if test_connection() else "disconnected"
-                except:
-                    response["llm_status"] = "error"
-            except Exception as e:
-                response["ml_dependencies_status"] = "ready_but_error"
-                response["error"] = str(e)
+        # Optional: Check if Redis environment variable exists (don't connect)
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            response["redis_configured"] = True
         else:
-            # Check if ML dependencies are being installed
-            try:
-                spec = importlib.util.find_spec("sentence_transformers")
-                if spec is not None:
-                    response["ml_dependencies_status"] = "available"
-                    response["message"] = "ML dependencies available, initializing..."
-                else:
-                    response["ml_dependencies_status"] = "installing"
-                    response["message"] = "ML dependencies installing in background, basic API ready"
-            except Exception:
-                response["ml_dependencies_status"] = "installing"
-                response["message"] = "ML dependencies installing in background, basic API ready"
-        
+            response["redis_configured"] = False
+            
+        # Optional: Check ML status without importing anything
+        if os.path.exists("/tmp/ml_ready"):
+            response["ml_status"] = "ready"
+        else:
+            response["ml_status"] = "pending"
+            
         return response
         
     except Exception as e:
-        # Even if everything fails, return 200 during startup
+        # Even if everything fails, return 200
         return {
-            "status": "starting",
-            "message": "Application starting up",
-            "timestamp": datetime.now().isoformat(),
-            "error": str(e)
+            "status": "minimal",
+            "message": "Basic health check",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
         }
 
 
-@app.post("/upload", response_model=UploadResponse)
+@app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
-    doc_type: DocType = DocType.textbook
+    doc_type: str = "textbook"
 ):
     """Upload a PDF file"""
     try:
+        # Import dependencies when needed
+        add_document, get_all_documents, UPLOAD_PATH = _import_deps()
+        ingest_pdf, generate_question_paper, get_job_status = _import_worker()
+        
         # Generate unique ID
         file_id = str(uuid.uuid4())
         filename = f"{file_id}_{file.filename}"
@@ -127,13 +137,13 @@ async def upload_file(
         add_document(
             doc_id=file_id,
             filename=file.filename,
-            doc_type=doc_type.value,
+            doc_type=doc_type,
             upload_time=datetime.now().isoformat(),
             status="processing"
         )
         
         # Start processing task
-        task_id = ingest_pdf(file_path, file_id, doc_type.value)
+        task_id = ingest_pdf(file_path, file_id, doc_type)
         
         return {
             "file_id": file_id,
@@ -149,14 +159,27 @@ async def upload_file(
 @app.get("/test")
 async def test_endpoint():
     """Simple test endpoint"""
-    return {"message": "Server is working", "timestamp": "2025-06-24-test"}
+    return {
+        "message": "Server is working", 
+        "timestamp": datetime.now().isoformat(),
+        "status": "ok",
+        "version": "1.0.0"
+    }
+
+@app.get("/ping")
+async def ping():
+    """Simplest possible endpoint"""
+    return {"ping": "pong"}
 
 
 @app.get("/documents")
 async def list_documents():
     """List all uploaded documents"""
     try:
-        # First, let's just return raw documents to see if that works
+        # Import dependencies when needed
+        add_document, get_all_documents, UPLOAD_PATH = _import_deps()
+        
+        # Get documents from database
         raw_docs = get_all_documents()
         return {"raw_documents": raw_docs}
     except Exception as e:

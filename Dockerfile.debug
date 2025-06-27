@@ -1,4 +1,4 @@
-# Ultra-simple Dockerfile for Railway deployment
+# Debug Dockerfile for Railway deployment
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -19,11 +19,13 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip cache purge \
     && rm -rf ~/.cache/pip
 
-# Copy application code
+# Copy application code and debug script
 COPY app/ ./app/
+COPY debug-start.sh ./debug-start.sh
 
-# Create data directories
-RUN mkdir -p data/uploads data/output
+# Make debug script executable and create data directories
+RUN chmod +x ./debug-start.sh && \
+    mkdir -p data/uploads data/output
 
 # Clean up
 RUN find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
@@ -37,5 +39,5 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Expose port
 EXPOSE $PORT
 
-# Simple direct command using minimal main
-CMD uvicorn app.main_minimal:app --host 0.0.0.0 --port ${PORT:-8000} 
+# Use debug script
+CMD ["./debug-start.sh"] 
