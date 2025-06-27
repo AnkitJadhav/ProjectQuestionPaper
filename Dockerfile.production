@@ -38,5 +38,8 @@ ENV ENVIRONMENT=production
 # Expose port
 EXPOSE $PORT
 
-# Use full-featured app
-CMD uvicorn app.main_full:app --host 0.0.0.0 --port ${PORT:-8000} 
+# Verify main_full.py exists and use it explicitly
+RUN ls -la app/main_full.py || echo "ERROR: main_full.py not found!"
+
+# Use full-featured app with absolute path
+CMD ["sh", "-c", "uvicorn app.main_full:app --host 0.0.0.0 --port ${PORT:-8000}"] 
