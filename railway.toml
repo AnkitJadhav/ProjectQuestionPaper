@@ -1,0 +1,10 @@
+[build]
+builder = "docker"
+
+[deploy]
+healthcheckPath = "/health"
+restartPolicyType = "on-failure"
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+[environments.production]
+variables = {} 
