@@ -63,4 +63,6 @@ print('🎯 ML installation started in background')
 
 # Start the web server immediately
 echo "🌐 Starting FastAPI web server..."
-exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} 
+PORT=${PORT:-8000}
+echo "🔧 Using port: $PORT"
+exec uvicorn app.main:app --host 0.0.0.0 --port $PORT 

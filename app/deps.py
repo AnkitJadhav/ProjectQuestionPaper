@@ -1,11 +1,14 @@
-# Ensure ML dependencies are installed at runtime
-try:
-    from app.runtime_installer import ensure_ml_dependencies
-    ensure_ml_dependencies()
-except Exception as e:
-    print(f"Warning: Could not ensure ML dependencies: {e}")
-
-import faiss
+# Import FAISS only when needed
+def _ensure_faiss():
+    """Ensure FAISS is available"""
+    try:
+        from app.runtime_installer import ensure_ml_dependencies
+        if not ensure_ml_dependencies():
+            raise ImportError("ML dependencies not ready")
+        import faiss
+        return faiss
+    except Exception as e:
+        raise ImportError(f"FAISS not available: {e}")
 import sqlite3
 import os
 import json
@@ -26,6 +29,7 @@ def ensure_directories():
 
 def get_index():
     """Get or create FAISS index"""
+    faiss = _ensure_faiss()
     ensure_directories()
     if not os.path.exists(DB_PATH):
         dim = 384  # MiniLM output dimension
@@ -36,6 +40,7 @@ def get_index():
 
 def add_embeddings(vecs: np.ndarray, metas: List[Dict]):
     """Add embeddings to FAISS index and metadata to SQLite"""
+    faiss = _ensure_faiss()
     ensure_directories()
     ix = get_index()
     start_id = ix.ntotal

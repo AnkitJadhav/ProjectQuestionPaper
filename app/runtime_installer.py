@@ -76,7 +76,10 @@ def ensure_ml_dependencies():
             
         # Check if we're in a production environment
         if os.getenv("ENVIRONMENT") == "production":
-            print("🚀 Production environment detected")
+            print("🚀 Production environment detected - deferring ML installation")
+            # In production, don't install synchronously on first import
+            # Let the background installer handle it
+            return False
         
         success = install_ml_dependencies()
         return success

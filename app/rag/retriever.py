@@ -6,14 +6,17 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Ensure ML dependencies are installed at runtime
-try:
-    from app.runtime_installer import ensure_ml_dependencies
-    ensure_ml_dependencies()
-except Exception as e:
-    print(f"Warning: Could not ensure ML dependencies: {e}")
-
-import faiss
+# Defer FAISS import until needed
+def _ensure_faiss():
+    """Ensure FAISS is available"""
+    try:
+        from app.runtime_installer import ensure_ml_dependencies
+        if not ensure_ml_dependencies():
+            raise ImportError("ML dependencies not ready")
+        import faiss
+        return faiss
+    except Exception as e:
+        raise ImportError(f"FAISS not available: {e}")
 
 from deps import get_index, META_PATH
 from ingest.embedder import embed_batch

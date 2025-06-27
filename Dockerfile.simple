@@ -1,12 +1,11 @@
-# Ultra-minimal Dockerfile - models downloaded at runtime
+# Ultra-simple Dockerfile for Railway deployment
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install only essential system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     curl \
-    wget \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
@@ -14,19 +13,17 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements
 COPY requirements.minimal.txt requirements.txt
 
-# Install Python dependencies WITHOUT downloading models
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
     && pip cache purge \
     && rm -rf ~/.cache/pip
 
-# Copy application code and startup script
+# Copy application code
 COPY app/ ./app/
-COPY startup-minimal.sh ./startup-minimal.sh
 
-# Make startup script executable and create data directories
-RUN chmod +x ./startup-minimal.sh && \
-    mkdir -p data/uploads data/output
+# Create data directories
+RUN mkdir -p data/uploads data/output
 
 # Clean up
 RUN find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
@@ -40,7 +37,5 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Expose port
 EXPOSE $PORT
 
-# Railway handles healthchecks, no need for Docker HEALTHCHECK
-
-# Command - use startup script that installs ML dependencies in background
-CMD ["./startup-minimal.sh"] 
+# Simple direct command
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} 

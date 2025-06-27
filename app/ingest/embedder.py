@@ -2,27 +2,34 @@ import numpy as np
 from typing import List
 import os
 
-# Ensure ML dependencies are installed at runtime
-try:
-    from app.runtime_installer import ensure_ml_dependencies
-    ensure_ml_dependencies()
-except Exception as e:
-    print(f"Warning: Could not ensure ML dependencies: {e}")
-
-# Now import ML libraries
-from sentence_transformers import SentenceTransformer
+# Defer ML dependency installation until actually needed
+import os
 
 # Global model instance - loaded once
 _model = None
-
+_ml_ready = False
 
 def get_model():
     """Get or load the embedding model"""
-    global _model
+    global _model, _ml_ready
+    
     if _model is None:
+        # Ensure ML dependencies are available
+        if not _ml_ready:
+            try:
+                from app.runtime_installer import ensure_ml_dependencies
+                _ml_ready = ensure_ml_dependencies()
+                if not _ml_ready:
+                    raise ImportError("ML dependencies not ready yet")
+            except Exception as e:
+                raise ImportError(f"ML dependencies not available: {e}")
+        
+        # Now import and load the model
+        from sentence_transformers import SentenceTransformer
         print("Loading SentenceTransformer model...")
         _model = SentenceTransformer("all-MiniLM-L6-v2")
         print("Model loaded successfully")
+        
     return _model
 
 

@@ -1,8 +1,7 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile.minimal"
+dockerfilePath = "Dockerfile.simple"
 
 [deploy]
 healthcheckPath = "/health"
-restartPolicyType = "ON_FAILURE"
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT" 
+restartPolicyType = "ON_FAILURE" 
