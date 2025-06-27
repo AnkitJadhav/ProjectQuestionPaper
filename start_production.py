@@ -1,30 +1,11 @@
 #!/usr/bin/env python3
 """
 Production startup script for Render.com deployment
-Starts server immediately, installs ML dependencies in background
+ML dependencies installed during build, starts immediately
 """
 import os
 import sys
 import uvicorn
-import threading
-import time
-
-def install_ml_background():
-    """Install ML dependencies in background"""
-    time.sleep(5)  # Give server time to start
-    try:
-        print("🔧 Starting background ML installation...")
-        from app.runtime_installer import install_ml_dependencies
-        success = install_ml_dependencies()
-        if success:
-            # Create ready marker
-            with open("/tmp/ml_ready", "w") as f:
-                f.write("ready")
-            print("✅ ML dependencies ready!")
-        else:
-            print("❌ ML installation failed")
-    except Exception as e:
-        print(f"❌ Background ML installation error: {e}")
 
 def main():
     print("🚀 Starting Question Paper Generator in PRODUCTION mode...")
@@ -44,10 +25,13 @@ def main():
     port = int(os.environ.get("PORT", 8000))
     print(f"🌐 Starting server on port {port}")
     
-    # Start ML installation in background thread
-    print("🔧 Starting background ML installation...")
-    ml_thread = threading.Thread(target=install_ml_background, daemon=True)
-    ml_thread.start()
+    # Create ML ready marker (since dependencies are pre-installed)
+    try:
+        with open("/tmp/ml_ready", "w") as f:
+            f.write("ready")
+        print("✅ ML dependencies pre-installed and ready!")
+    except:
+        pass
     
     # Start server immediately
     try:
@@ -55,7 +39,7 @@ def main():
         from app.main_full import app
         print("✅ Successfully imported full production app")
         
-        # Start uvicorn immediately
+        # Start uvicorn
         uvicorn.run(
             app,
             host="0.0.0.0",
