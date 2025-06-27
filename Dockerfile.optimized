@@ -1,0 +1,49 @@
+# Use a minimal Python base image
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies in a single layer and clean up immediately
+RUN apt-get update && apt-get install -y \
+    curl \
+    gcc \
+    g++ \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy requirements first for better Docker layer caching
+COPY requirements.railway.txt requirements.txt
+
+# Install Python dependencies with optimizations
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip cache purge \
+    && rm -rf ~/.cache/pip
+
+# Copy only necessary application code
+COPY app/ ./app/
+
+# Create data directories
+RUN mkdir -p data/uploads data/output
+
+# Remove unnecessary files to reduce image size
+RUN find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
+    && find /usr/local/lib/python3.11/site-packages -name "__pycache__" -type d -exec rm -rf {} + \
+    && find /usr/local/lib/python3.11/site-packages -name "*.pyo" -delete
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Expose port
+EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Use exec form for better signal handling
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"] 

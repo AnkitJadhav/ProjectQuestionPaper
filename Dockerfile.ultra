@@ -1,0 +1,66 @@
+# Multi-stage build for minimal final image
+# Stage 1: Build dependencies
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.optimized.txt requirements.txt
+
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install dependencies in virtual environment
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && pip cache purge
+
+# Stage 2: Runtime image
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy application code
+COPY app/ ./app/
+
+# Create data directories
+RUN mkdir -p data/uploads data/output
+
+# Clean up Python bytecode and cache
+RUN find /opt/venv -name "*.pyc" -delete \
+    && find /opt/venv -name "__pycache__" -type d -exec rm -rf {} + \
+    && find /opt/venv -name "*.pyo" -delete
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Expose port
+EXPOSE $PORT
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:$PORT/health || exit 1
+
+# Command
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"] 
