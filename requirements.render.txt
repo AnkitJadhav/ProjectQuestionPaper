@@ -5,14 +5,13 @@ uvicorn[standard]==0.24.0
 python-multipart==0.0.6
 aiofiles==23.2.1
 
-# Database
-sqlite3
+# Database (sqlite3 is built-in to Python)
 
 # PDF processing
 PyPDF2==3.0.1
 
 # Lightweight ML stack (CPU-only, smaller versions)
-torch==2.1.0+cpu --index-url https://download.pytorch.org/whl/cpu
+torch==2.1.0
 transformers==4.35.0
 sentence-transformers==2.2.2
 numpy==1.24.3
