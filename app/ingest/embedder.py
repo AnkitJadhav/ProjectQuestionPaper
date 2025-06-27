@@ -1,8 +1,16 @@
-from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List
 import os
 
+# Ensure ML dependencies are installed at runtime
+try:
+    from app.runtime_installer import ensure_ml_dependencies
+    ensure_ml_dependencies()
+except Exception as e:
+    print(f"Warning: Could not ensure ML dependencies: {e}")
+
+# Now import ML libraries
+from sentence_transformers import SentenceTransformer
 
 # Global model instance - loaded once
 _model = None

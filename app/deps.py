@@ -1,3 +1,10 @@
+# Ensure ML dependencies are installed at runtime
+try:
+    from app.runtime_installer import ensure_ml_dependencies
+    ensure_ml_dependencies()
+except Exception as e:
+    print(f"Warning: Could not ensure ML dependencies: {e}")
+
 import faiss
 import sqlite3
 import os
