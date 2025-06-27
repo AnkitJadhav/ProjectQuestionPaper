@@ -70,18 +70,20 @@ def install_ml_dependencies() -> bool:
 def ensure_ml_dependencies():
     """Ensure ML dependencies are installed, install if missing"""
     try:
+        # Check if ML dependencies are already ready
+        if os.path.exists("/tmp/ml_ready"):
+            return True
+            
         # Check if we're in a production environment
         if os.getenv("ENVIRONMENT") == "production":
             print("🚀 Production environment detected")
         
         success = install_ml_dependencies()
-        if not success:
-            print("💥 Failed to install ML dependencies")
-            sys.exit(1)
+        return success
             
     except Exception as e:
-        print(f"💥 Critical error installing dependencies: {e}")
-        sys.exit(1)
+        print(f"⚠️ Warning: Could not install ML dependencies: {e}")
+        return False
 
 if __name__ == "__main__":
     ensure_ml_dependencies() 

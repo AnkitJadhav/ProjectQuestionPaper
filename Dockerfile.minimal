@@ -20,11 +20,13 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip cache purge \
     && rm -rf ~/.cache/pip
 
-# Copy application code
+# Copy application code and startup script
 COPY app/ ./app/
+COPY startup-minimal.sh ./startup-minimal.sh
 
-# Create data directories
-RUN mkdir -p data/uploads data/output
+# Make startup script executable and create data directories
+RUN chmod +x ./startup-minimal.sh && \
+    mkdir -p data/uploads data/output
 
 # Clean up
 RUN find /usr/local/lib/python3.11/site-packages -name "*.pyc" -delete \
@@ -38,9 +40,9 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Expose port
 EXPOSE $PORT
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Health check - extended timeout for ML dependency installation
+HEALTHCHECK --interval=45s --timeout=20s --start-period=300s --retries=5 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Command - models will be downloaded on first run
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"] 
+# Command - use startup script that installs ML dependencies in background
+CMD ["./startup-minimal.sh"] 

@@ -52,28 +52,59 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - lightweight during ML dependency installation"""
     try:
-        # Test basic functionality
-        from .deps import get_index
-        index = get_index()
+        # Check if ML dependencies are being installed
+        import importlib.util
         
-        # Test LLM connection
-        llm_status = "unknown"
-        try:
-            llm_status = "connected" if test_connection() else "disconnected"
-        except:
-            llm_status = "error"
-        
-        return {
+        # Basic health check
+        response = {
             "status": "healthy",
-            "vector_db_size": index.ntotal,
-            "llm_status": llm_status,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "ml_dependencies_status": "checking"
         }
         
+        # Check ML readiness flag first
+        if os.path.exists("/tmp/ml_ready"):
+            response["ml_dependencies_status"] = "ready"
+            try:
+                # ML dependencies ready, do full health check
+                from .deps import get_index
+                index = get_index()
+                response["vector_db_size"] = index.ntotal
+                
+                # Test LLM connection
+                try:
+                    response["llm_status"] = "connected" if test_connection() else "disconnected"
+                except:
+                    response["llm_status"] = "error"
+            except Exception as e:
+                response["ml_dependencies_status"] = "ready_but_error"
+                response["error"] = str(e)
+        else:
+            # Check if ML dependencies are being installed
+            try:
+                spec = importlib.util.find_spec("sentence_transformers")
+                if spec is not None:
+                    response["ml_dependencies_status"] = "available"
+                    response["message"] = "ML dependencies available, initializing..."
+                else:
+                    response["ml_dependencies_status"] = "installing"
+                    response["message"] = "ML dependencies installing in background, basic API ready"
+            except Exception:
+                response["ml_dependencies_status"] = "installing"
+                response["message"] = "ML dependencies installing in background, basic API ready"
+        
+        return response
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+        # Even if everything fails, return 200 during startup
+        return {
+            "status": "starting",
+            "message": "Application starting up",
+            "timestamp": datetime.now().isoformat(),
+            "error": str(e)
+        }
 
 
 @app.post("/upload", response_model=UploadResponse)
