@@ -36,7 +36,7 @@ Visit: https://render.com
 - **Runtime**: `Docker`
 
 **Build Settings:**
-- **Dockerfile Path**: `Dockerfile.production`
+- **Dockerfile Path**: `Dockerfile.render`
 - **Build Command**: Leave empty
 - **Start Command**: Leave empty (Docker handles this)
 
